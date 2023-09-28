@@ -1,42 +1,49 @@
-const express = require('express')
-const bodyParser = require('body-parser')
-const mongoose = require('mongoose')
-const dotenv = require('dotenv')
-const authRoutes = require('../routes/auth')
-const jobsRoutes = require('../routes/jobs')
-dotenv.config()
+const express = require('express');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
+const authRoutes = require('./routes/auth');
+const jobRoutes = require('./routes/jobs');
 
-const app = express()
+const app = express();
 
-app.use(bodyParser.urlencoded({extended:true}))
-app.use(express.static("/public"))
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-mongoose.connect(process.env.MONGODB_URL,{
-    useNewUrlParser:true,
-    useUnifiedTopology:true, 
-    
-})
-.then(()=>{
-    console.log("Connected to MongoDB");
-})
-.catch(err=>err.message)
+// MongoDB connection
+const mongodbUrl = process.env.MONGODB_URL;
 
+async function connectToDatabase() {
+  try {
+    await mongoose.connect(mongodbUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+    console.log('Connected to MongoDB');
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err);
+    process.exit(1); 
+  }
+}
 
+connectToDatabase();
 
-app.get('/health', async (req, res) => {
-    res.status(200).json("Server Up on Running");
-})
+// Register routes
+app.use('/api/auth', authRoutes);
+app.use('/api/job', jobRoutes);
 
-app.use("/api/auth",authRoutes)
-app.use("/api/jobs",jobsRoutes)
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'Server is up and running' });
+});
 
+// Error handler middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
 
-
-
-app.listen(process.env.PORT, () => {
-    console.log(`Listening on http://localhost:${process.env.PORT}`)
-  })
-   
-     
-    
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

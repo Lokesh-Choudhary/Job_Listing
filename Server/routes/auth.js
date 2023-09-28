@@ -1,50 +1,77 @@
-const express = require("express");
-const router = express.router();
-const User = require("../models/user");
-const jwt = require("jsonwebtoken");
-const bycrpt = require("bcrypt");
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const User = require('../model/user');
+require('dotenv').config(); // Load environment variables from .env file
 
-router.post("/register", async (req, res) => {
+// Error handler middleware
+const errorHandler = (res, error) => {
+  console.error(error);
+  res.status(500).json({ error: 'Internal Server Error' });
+};
+
+// Register route
+router.post('/register', async (req, res) => {
   try {
-    // Get all feilds
     const { name, email, mobile, password } = req.body;
-
+    console.log(name, email, mobile, password)
+    // Check if all required fields are provided
     if (!name || !email || !mobile || !password) {
-      res.status(400).json({ error: "All Feilds Are Required" });
+      return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // Check if email is already registered
     const existingUser = await User.findOne({ email });
-
     if (existingUser) {
-      res.status(409).json({ Error: "User email already exists" });
+      return res.status(409).json({ error: 'Email is already registered' });
     }
 
-    const hashPassword = await User.bycrpt.hash(password, 10);
-    const user = new User({ name, email, mobile, password });
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user
+    const user = new User({ name, email, mobile, password: hashedPassword });
     await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign({ user: user.email }, process.env.JWT_SECRET_KEY); // Replace 'SECRET_KEY' with your own secret key
+
+    // Return success response
+    res.json({ success: true, token, user:email, name:name });
   } catch (error) {
-    res.status(500).json({ status: false, message: "Internal Server Error" });
+    errorHandler(res, error);
   }
 });
 
-router.post("/login", async (req, res) => {
+// Login route
+router.post('/login', async (req, res) => {
   try {
+    const { email, password } = req.body;
+    // Check if email and password are provided
     if (!email || !password) {
-      return res.status.json({ error: "Email and Password Required" });
-    }
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ error: "Invalid Email and password" });
-    }
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const token = jwt.sign({ userId: user._id }, "SECRET_KEY");
-    res.json({ success: true, token, recuruiterName: user.name, user: email });
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Compare password with stored hash
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: user._id }, 'SECRET_KEY'); // Replace 'SECRET_KEY' with your own secret key
+
+    // Return success response
+    res.json({ success: true, token, recruiterName: user.name, user:email });
   } catch (error) {
-    console.log(error);
+    errorHandler(res, error);
   }
 });
 
