@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../model/user');
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config(); 
 
 // Error handler middleware
 const errorHandler = (res, error) => {
